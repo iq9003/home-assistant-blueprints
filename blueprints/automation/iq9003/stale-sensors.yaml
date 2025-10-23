@@ -4,6 +4,7 @@ blueprint:
     Monitors all sensor entities in a device. If none of them update within the last hour, an action is executed.
   domain: automation
   source_url: https://github.com/iq9003/home-assistant-blueprints/blob/main/blueprints/automation/iq9003/stale-sensors.yaml
+              
   input:
     target_devices:
       name: Devices to Monitor
