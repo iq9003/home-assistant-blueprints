@@ -1,0 +1,134 @@
+blueprint:
+  name: Stale Sensors
+  description: >-
+    Monitors all sensor entities in a device. If none of them update within the last hour, an action is executed.
+  domain: automation
+  source_url: https://github.com/iq9003/home-assistant-blueprints/blob/main/blueprints/automation/iq9003/stale-sensors.yaml
+  input:
+    target_devices:
+      name: Devices to Monitor
+      description: Select a device to monitor
+      selector:
+        device:
+          multiple: true
+
+    trigger_interval:
+      name: Check Interval
+      description: How often to check for stale sensors
+      default: 1
+      selector:
+        select:
+          options:
+            - value: "/1"
+              label: "Every hour"
+            - value: "/2"
+              label: "Every 2 hours"
+            - value: "/4"
+              label: "Every 4 hours"
+            - value: "/12"
+              label: "Every 12 hours"
+
+    timeout_hours:
+      name: Timeout Duration (Hours)
+      description: Number of hours after which a device's sensors are considered stale.
+      default: 2
+      selector:
+        number:
+          min: 1
+          max: 12
+          unit_of_measurement: hours
+          mode: slider
+
+    notification_action:
+      name: Notification Action
+      description: "Select the action to perform when sensors are stale, u can use these variables in a notification: {{stale_minutes}},{{sensor_name}},{{device_model}},{{area_name}}"
+      selector:
+        action: {}
+
+    notification_start_time:
+      name: Notification Start Time
+      description: Earliest time to send notifications
+      default: "10:00:00"
+      selector:
+        time:
+
+    notification_end_time:
+      name: Notification End Time
+      description: Latest time to send notifications
+      default: "22:00:00"
+      selector:
+        time:
+
+mode: single
+triggers:
+  - trigger: time_pattern
+    hours: !input trigger_interval
+    minutes: 0
+    seconds: 0
+
+condition:
+  - condition: time
+    after: !input notification_start_time
+    before: !input notification_end_time
+
+action:
+  - variables:
+      devices: !input target_devices
+      timeout_hours: !input timeout_hours
+      timeout_ts: >
+        {{ (now() - timedelta(hours=timeout_hours | int)).timestamp() }}
+
+  - repeat:
+      for_each: "{{ devices }}"
+      sequence:
+        - variables:
+            device_id: "{{ repeat.item }}"
+            entity_ids: "{{ device_entities(device_id) | select('match', '^sensor\\.') | list }}"
+
+            most_recent_entity: >-
+              {% set latest = namespace(id='', time=0) %}
+              {% for e in entity_ids %}
+                {% if states[e] is defined %}
+                  {% set t = states[e].last_updated.timestamp() %}
+                  {% if t > latest.time %}
+                    {% set latest.id = e %}
+                    {% set latest.time = t %}
+                  {% endif %}
+                {% endif %}
+              {% endfor %}
+              {{ {'id': latest.id, 'time': latest.time} }}
+
+            area_name: >-
+              {{ device_attr(device_id, 'area_id') or 'Unknown Area' }}
+
+            device_model: >-
+              {{ device_attr(device_id, 'model') or 'Unknown Model' }}
+
+            sensor_name: >-
+              {{ state_attr(most_recent_entity.id, 'friendly_name') or most_recent_entity.id }}
+
+            stale_minutes: >-
+              {{ timeout_hours * 60 }}
+
+        - if:
+            - condition: template
+              value_template: "{{ most_recent_entity.time < timeout_ts }}"
+
+          then:
+            - choose:
+                - conditions: []
+                  sequence: !input notification_action
+#          then:
+#            - action: persistent_notification.create
+#              data:
+#                title: Sensor Not Updating
+#                message: >-
+#                  {% set area = device_attr(device_id, 'area_id') %}
+#                  {% set model = device_attr(device_id, 'model') %}
+#                  {% set most_recent_entity_name = state_attr(most_recent_entity.id, 'friendly_name') or most_recent_entity.id %}
+#                  No sensor "{{ most_recent_entity_name }}" in device model "{{ model }}"{% if area %} (Area: {{ area }}){% endif %} has updated in the last {{ timeout_minutes }} minutes.
+#                  Sensor(s) "{{ sensor_name }}" in {% if area_name != 'Unknown Area' %}(Area(s): {{ area_name }}){% endif %} not updated in the last {{ stale_minutes }} minutes.
+
+#                message: >-
+#                  No sensor in "{{ state_attr(most_recent_entity.id, 'friendly_name') or most_recent_entity.id }}"
+#                  has updated in the last {{ timeout_minutes }} minutes.
