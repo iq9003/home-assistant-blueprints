@@ -118,17 +118,3 @@ action:
             - choose:
                 - conditions: []
                   sequence: !input notification_action
-#          then:
-#            - action: persistent_notification.create
-#              data:
-#                title: Sensor Not Updating
-#                message: >-
-#                  {% set area = device_attr(device_id, 'area_id') %}
-#                  {% set model = device_attr(device_id, 'model') %}
-#                  {% set most_recent_entity_name = state_attr(most_recent_entity.id, 'friendly_name') or most_recent_entity.id %}
-#                  No sensor "{{ most_recent_entity_name }}" in device model "{{ model }}"{% if area %} (Area: {{ area }}){% endif %} has updated in the last {{ timeout_minutes }} minutes.
-#                  Sensor(s) "{{ sensor_name }}" in {% if area_name != 'Unknown Area' %}(Area(s): {{ area_name }}){% endif %} not updated in the last {{ stale_minutes }} minutes.
-
-#                message: >-
-#                  No sensor in "{{ state_attr(most_recent_entity.id, 'friendly_name') or most_recent_entity.id }}"
-#                  has updated in the last {{ timeout_minutes }} minutes.
