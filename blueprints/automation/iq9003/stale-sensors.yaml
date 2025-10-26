@@ -32,11 +32,11 @@ blueprint:
     timeout_hours:
       name: Timeout Duration (Hours)
       description: Number of hours after which a device's sensors are considered stale.
-      default: 2
+      default: 4
       selector:
         number:
           min: 1
-          max: 12
+          max: 24
           unit_of_measurement: hours
           mode: slider
 
